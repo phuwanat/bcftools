@@ -1015,7 +1015,7 @@ int main_vcfannotate(int argc, char *argv[])
     args->argc    = argc; args->argv = argv;
     args->files   = bcf_sr_init();
     args->output_fname = "-";
-    args->output_type = FT_VCF;
+    args->output_type = HTS_FT_VCF;
     args->nplugin_paths = -1;
     args->ref_idx = args->alt_idx = args->chr_idx = args->from_idx = args->to_idx = -1;
     int plist_only = 0, regions_is_file = 0;
@@ -1046,10 +1046,10 @@ int main_vcfannotate(int argc, char *argv[])
             case 'o': args->output_fname = optarg; break;
             case 'O':
                 switch (optarg[0]) {
-                    case 'b': args->output_type = FT_BCF_GZ; break;
-                    case 'u': args->output_type = FT_BCF; break;
-                    case 'z': args->output_type = FT_VCF_GZ; break;
-                    case 'v': args->output_type = FT_VCF; break;
+                    case 'b': args->output_type = HTS_FT_BCF|HTS_GZ; break;
+                    case 'u': args->output_type = HTS_FT_BCF; break;
+                    case 'z': args->output_type = HTS_FT_VCF|HTS_GZ; break;
+                    case 'v': args->output_type = HTS_FT_VCF; break;
                     default: error("The output type \"%s\" not recognised\n", optarg);
                 };
                 break;
@@ -1082,11 +1082,15 @@ int main_vcfannotate(int argc, char *argv[])
         if ( bcf_sr_set_regions(args->files, args->regions_list, regions_is_file)<0 )
             error("Failed to read the regions: %s\n", args->regions_list);
     }
-    if ( args->targets_fname && hts_file_type(args->targets_fname) & (FT_VCF|FT_BCF) )
+    if ( args->targets_fname )
     {
-        args->tgts_is_vcf = 1;
-        args->files->require_index = 1;
-        args->files->collapse |= COLLAPSE_SOME;
+        int ftype = hts_file_type(args->targets_fname);
+        if ( (HTS_FT(ftype)==HTS_FT_VCF || HTS_FT(ftype)==HTS_FT_BCF) )
+        {
+            args->tgts_is_vcf = 1;
+            args->files->require_index = 1;
+            args->files->collapse |= COLLAPSE_SOME;
+        }
     }
     if ( !bcf_sr_add_reader(args->files, fname) ) error("Failed to open or the file not indexed: %s\n", fname);
 

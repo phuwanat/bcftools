@@ -1065,7 +1065,7 @@ void merge_info(args_t *args, bcf1_t *out)
                 ma->inf[out->n_info].vptr_off  = inf->vptr_off;
                 ma->inf[out->n_info].vptr_len  = inf->vptr_len;
                 ma->inf[out->n_info].vptr_free = inf->vptr_free;
-                if ( (args->output_type & FT_BCF) && id!=bcf_hdr_id2int(hdr, BCF_DT_ID, key) )
+                if ( HTS_FT(args->output_type)==HTS_FT_BCF && id!=bcf_hdr_id2int(hdr, BCF_DT_ID, key) )
                 {
                     // The existing packed info cannot be reused. Change the id.
                     // Although quite hacky, it's faster than anything else given
@@ -1898,7 +1898,7 @@ int main_vcfmerge(int argc, char *argv[])
     args->files  = bcf_sr_init();
     args->argc   = argc; args->argv = argv;
     args->output_fname = "-";
-    args->output_type = FT_VCF;
+    args->output_type = HTS_FT_VCF;
     args->collapse = COLLAPSE_BOTH;
     int regions_is_file = 0;
 
@@ -1925,10 +1925,10 @@ int main_vcfmerge(int argc, char *argv[])
             case 'o': args->output_fname = optarg; break;
             case 'O':
                 switch (optarg[0]) {
-                    case 'b': args->output_type = FT_BCF_GZ; break;
-                    case 'u': args->output_type = FT_BCF; break;
-                    case 'z': args->output_type = FT_VCF_GZ; break;
-                    case 'v': args->output_type = FT_VCF; break;
+                    case 'b': args->output_type = HTS_FT_BCF|HTS_GZ; break;
+                    case 'u': args->output_type = HTS_FT_BCF; break;
+                    case 'z': args->output_type = HTS_FT_VCF|HTS_GZ; break;
+                    case 'v': args->output_type = HTS_FT_VCF; break;
                     default: error("The output type \"%s\" not recognised\n", optarg);
                 }
                 break;

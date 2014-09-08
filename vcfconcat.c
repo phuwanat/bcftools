@@ -442,7 +442,7 @@ static void concat(args_t *args)
         {
             htsFile *fp = hts_open(args->fnames[i], "r"); if ( !fp ) error("Failed to open: %s\n", args->fnames[i]);
             bcf_hdr_t *hdr = bcf_hdr_read(fp); if ( !hdr ) error("Failed to parse header: %s\n", args->fnames[i]);
-            if ( !fp->is_bin && args->output_type&FT_VCF )
+            if ( !fp->is_bin && HTS_FT(args->output_type)==HTS_FT_VCF )
             {
                 line->max_unpack = BCF_UN_STR;
                 // if VCF is on both input and output, avoid VCF to BCF conversion
@@ -529,7 +529,7 @@ int main_vcfconcat(int argc, char *argv[])
     args_t *args  = (args_t*) calloc(1,sizeof(args_t));
     args->argc    = argc; args->argv = argv;
     args->output_fname = "-";
-    args->output_type = FT_VCF;
+    args->output_type = HTS_FT_VCF;
     args->min_PQ  = 30;
 
     static struct option loptions[] =
@@ -552,10 +552,10 @@ int main_vcfconcat(int argc, char *argv[])
             case 'o': args->output_fname = optarg; break;
             case 'O':
                 switch (optarg[0]) {
-                    case 'b': args->output_type = FT_BCF_GZ; break;
-                    case 'u': args->output_type = FT_BCF; break;
-                    case 'z': args->output_type = FT_VCF_GZ; break;
-                    case 'v': args->output_type = FT_VCF; break;
+                    case 'b': args->output_type = HTS_FT_BCF|HTS_GZ; break;
+                    case 'u': args->output_type = HTS_FT_BCF; break;
+                    case 'z': args->output_type = HTS_FT_VCF|HTS_GZ; break;
+                    case 'v': args->output_type = HTS_FT_VCF; break;
                     default: error("The output type \"%s\" not recognised\n", optarg);
                 };
                 break;

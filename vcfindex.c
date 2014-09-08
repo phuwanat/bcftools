@@ -49,7 +49,7 @@ static void usage(void)
     fprintf(stderr, "\n");
     fprintf(stderr, "Stats options:\n");
     fprintf(stderr, "    -n, --nrecords       print number of records based on existing index file\n");
-    fprintf(stderr, "    -s, --stats   print per contig stats based on existing index file\n");
+    fprintf(stderr, "    -s, --stats          print per contig stats based on existing index file\n");
     fprintf(stderr, "\n");
     exit(1);
 }
@@ -61,7 +61,7 @@ int vcf_index_stats(char *fname, int stats)
     out = fn_out ? fopen(fn_out, "w") : stdout;
 
     const char **seq;
-    int i, nseq, ftype = hts_file_type(fname);
+    int i, nseq;
     tbx_t *tbx = NULL;
     hts_idx_t *idx = NULL;
 
@@ -70,12 +70,13 @@ int vcf_index_stats(char *fname, int stats)
     bcf_hdr_t *hdr = bcf_hdr_read(fp);
     if ( !hdr ) { fprintf(stderr,"Could not read the header: %s\n", fname); return 1; }
 
-    if ( ftype & FT_VCF || !ftype )
+    int ftype = hts_fd_type(fp);
+    if ( HTS_FT(ftype)==HTS_FT_VCF || !ftype )
     {
         tbx = tbx_index_load(fname);
         if ( !tbx ) { fprintf(stderr,"Could not load TBI index: %s\n", fname); return 1; }
     }
-    else if ( ftype & FT_BCF )
+    else if ( HTS_FT(ftype)==HTS_FT_BCF )
     {
         idx = bcf_index_load(fname);
         if ( !idx ) { fprintf(stderr,"Could not load CSI index: %s\n", fname); return 1; }
@@ -177,24 +178,27 @@ int main_vcfindex(int argc, char *argv[])
     char *fname = argv[optind];
     if (stats) return vcf_index_stats(fname, stats);
     int ftype = hts_file_type(fname);
-    if (!ftype || (ftype != FT_BCF_GZ && ftype != FT_VCF_GZ))
+    if ( !(ftype & HTS_GZ_BGZF) )
     {
-        fprintf(stderr, "[E::%s] unknown filetype; expected bgzip compressed VCF or BCF\n", __func__);
-        if (!(ftype & FT_GZ))
-            fprintf(stderr, "[E::%s] was the VCF/BCF compressed with bgzip?\n", __func__);
+        fprintf(stderr, "The file is not compressed with bgzip, cannot index: %s\n", fname);
         return 1;
     }
-    if (tbi && ftype == FT_BCF_GZ)
+    if ( !ftype && HTS_FT(ftype)!=HTS_FT_VCF && HTS_FT(ftype)!=HTS_FT_BCF )
+    {
+        fprintf(stderr, "[E::%s] unknown filetype; expected bgzip compressed VCF or BCF\n", __func__);
+        return 1;
+    }
+    if (tbi && HTS_FT(ftype)==HTS_FT_BCF)
     {
         fprintf(stderr, "[Warning] TBI-index does not work for BCF files. Generating CSI instead.\n");
         tbi = 0; min_shift = BCF_LIDX_SHIFT;
     }
-    if (min_shift == 0 && ftype == FT_BCF_GZ)
+    if (min_shift == 0 && HTS_FT(ftype)==HTS_FT_BCF)
     {
         fprintf(stderr, "[E::%s] Require min_shift>0 for BCF files.\n", __func__);
         return 1;
     }
-    if (!tbi && ftype == FT_VCF_GZ && min_shift == 0)
+    if (!tbi && HTS_FT(ftype)==HTS_FT_VCF && min_shift == 0)
     {
         fprintf(stderr, "[Warning] min-shift set to 0 for VCF file. Generating TBI file.\n");
         tbi = 1;
@@ -217,7 +221,7 @@ int main_vcfindex(int argc, char *argv[])
         }
     }
 
-    if (ftype == FT_BCF_GZ)
+    if ( HTS_FT(ftype)==HTS_FT_BCF)
     {
         if ( bcf_index_build(fname, min_shift) != 0 )
         {

@@ -209,9 +209,9 @@ static void init_data(args_t *args)
     char modew[8];
     strcpy(modew, "w");
     if (args->clevel >= 0 && args->clevel <= 9) sprintf(modew + 1, "%d", args->clevel);
-    if (args->output_type==FT_BCF) strcat(modew, "bu");         // uncompressed BCF
-    else if (args->output_type & FT_BCF) strcat(modew, "b");    // compressed BCF
-    else if (args->output_type & FT_GZ) strcat(modew,"z");      // compressed VCF
+    if (args->output_type==HTS_FT_BCF) strcat(modew, "bu");                 // uncompressed BCF
+    else if ( HTS_FT(args->output_type)==HTS_FT_BCF) strcat(modew, "b");    // compressed BCF
+    else if (args->output_type & HTS_GZ) strcat(modew,"z");                 // compressed VCF
     args->out = hts_open(args->fn_out ? args->fn_out : "-", modew);
     if ( !args->out ) error("%s: %s\n", args->fn_out,strerror(errno));
 
@@ -498,7 +498,7 @@ int main_vcfview(int argc, char *argv[])
     args->clevel  = -1;
     args->print_header = 1;
     args->update_info = 1;
-    args->output_type = FT_VCF;
+    args->output_type = HTS_FT_VCF;
     int targets_is_file = 0, regions_is_file = 0;
 
     static struct option loptions[] =
@@ -547,14 +547,14 @@ int main_vcfview(int argc, char *argv[])
         {
             case 'O':
                 switch (optarg[0]) {
-                    case 'b': args->output_type = FT_BCF_GZ; break;
-                    case 'u': args->output_type = FT_BCF; break;
-                    case 'z': args->output_type = FT_VCF_GZ; break;
-                    case 'v': args->output_type = FT_VCF; break;
+                    case 'b': args->output_type = HTS_FT_BCF|HTS_GZ; break;
+                    case 'u': args->output_type = HTS_FT_BCF; break;
+                    case 'z': args->output_type = HTS_FT_VCF|HTS_GZ; break;
+                    case 'v': args->output_type = HTS_FT_VCF; break;
                     default: error("The output type \"%s\" not recognised\n", optarg);
                 };
                 break;
-            case 'l': args->clevel = atoi(optarg); args->output_type |= FT_GZ; break;
+            case 'l': args->clevel = atoi(optarg); args->output_type |= HTS_GZ; break;
             case 'o': args->fn_out = optarg; break;
             case 'H': args->print_header = 0; break;
             case 'h': args->header_only = 1; break;
@@ -683,7 +683,7 @@ int main_vcfview(int argc, char *argv[])
     bcf_hdr_t *out_hdr = args->hnull ? args->hnull : (args->hsub ? args->hsub : args->hdr);
     if (args->print_header)
         bcf_hdr_write(args->out, out_hdr);
-    else if ( args->output_type & FT_BCF )
+    else if ( HTS_FT(args->output_type)==HTS_FT_BCF )
         error("BCF output requires header, cannot proceed with -H\n");
     if (!args->header_only)
     {

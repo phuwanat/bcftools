@@ -407,7 +407,7 @@ int main_vcfconvert(int argc, char *argv[])
     args_t *args = (args_t*) calloc(1,sizeof(args_t));
     args->argc   = argc; args->argv = argv;
     args->outfname = "-";
-    args->output_type = FT_VCF;
+    args->output_type = HTS_FT_VCF;
 
     static struct option loptions[] =
     {
@@ -445,10 +445,10 @@ int main_vcfconvert(int argc, char *argv[])
             case 'o': args->outfname = optarg; break;
             case 'O':
                 switch (optarg[0]) {
-                    case 'b': args->output_type = FT_BCF_GZ; break;
-                    case 'u': args->output_type = FT_BCF; break;
-                    case 'z': args->output_type = FT_VCF_GZ; break;
-                    case 'v': args->output_type = FT_VCF; break;
+                    case 'b': args->output_type = HTS_FT_BCF|HTS_GZ; break;
+                    case 'u': args->output_type = HTS_FT_BCF; break;
+                    case 'z': args->output_type = HTS_FT_VCF|HTS_GZ; break;
+                    case 'v': args->output_type = HTS_FT_VCF; break;
                     default: error("The output type \"%s\" not recognised\n", optarg);
                 }
                 break;

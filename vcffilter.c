@@ -404,7 +404,7 @@ int main_vcffilter(int argc, char *argv[])
     args->argc    = argc; args->argv = argv;
     args->files   = bcf_sr_init();
     args->output_fname = "-";
-    args->output_type = FT_VCF;
+    args->output_type = HTS_FT_VCF;
     int regions_is_file = 0, targets_is_file = 0;
 
     static struct option loptions[] =
@@ -431,10 +431,10 @@ int main_vcffilter(int argc, char *argv[])
             case 'o': args->output_fname = optarg; break;
             case 'O':
                 switch (optarg[0]) {
-                    case 'b': args->output_type = FT_BCF_GZ; break;
-                    case 'u': args->output_type = FT_BCF; break;
-                    case 'z': args->output_type = FT_VCF_GZ; break;
-                    case 'v': args->output_type = FT_VCF; break;
+                    case 'b': args->output_type = HTS_FT_BCF|HTS_GZ; break;
+                    case 'u': args->output_type = HTS_FT_BCF; break;
+                    case 'z': args->output_type = HTS_FT_VCF|HTS_GZ; break;
+                    case 'v': args->output_type = HTS_FT_VCF; break;
                     default: error("The output type \"%s\" not recognised\n", optarg);
                 }
                 break;

@@ -514,7 +514,7 @@ int main_vcfcall(int argc, char *argv[])
     args.aux.min_lrt    = 1;
     args.flag           = CF_ACGT_ONLY;
     args.output_fname   = "-";
-    args.output_type    = FT_VCF;
+    args.output_type    = HTS_FT_VCF;
     args.aux.trio_Pm_SNPs = 1 - 1e-8;
     args.aux.trio_Pm_ins  = args.aux.trio_Pm_del  = 1 - 1e-9;
 
@@ -570,10 +570,10 @@ int main_vcfcall(int argc, char *argv[])
             case 'o': args.output_fname = optarg; break;
             case 'O':
                       switch (optarg[0]) {
-                          case 'b': args.output_type = FT_BCF_GZ; break;
-                          case 'u': args.output_type = FT_BCF; break;
-                          case 'z': args.output_type = FT_VCF_GZ; break;
-                          case 'v': args.output_type = FT_VCF; break;
+                          case 'b': args.output_type = HTS_FT_BCF|HTS_GZ; break;
+                          case 'u': args.output_type = HTS_FT_BCF; break;
+                          case 'z': args.output_type = HTS_FT_VCF|HTS_GZ; break;
+                          case 'v': args.output_type = HTS_FT_VCF; break;
                           default: error("The output type \"%s\" not recognised\n", optarg);
                       }
                       break;

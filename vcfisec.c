@@ -120,10 +120,18 @@ FILE *open_file(char **fname, const char *mode, const char *fmt, ...)
 
 const char *hts_bcf_wmode(int file_type)
 {
-    if ( file_type == FT_BCF ) return "wbu";    // uncompressed BCF
-    if ( file_type & FT_BCF ) return "wb";      // compressed BCF
-    if ( file_type & FT_GZ ) return "wz";       // compressed VCF
-    return "w";                                 // uncompressed VCF
+    if ( file_type & HTS_GZ )
+    {
+        if ( HTS_FT(file_type)==HTS_FT_BCF ) return "wb";  // compressed BCF
+        if ( HTS_FT(file_type)==HTS_FT_VCF ) return "wz";  // compressed VCF
+    }
+    else
+    {
+        if ( HTS_FT(file_type)==HTS_FT_BCF ) return "wbu"; // uncompressed BCF
+        if ( HTS_FT(file_type)==HTS_FT_VCF ) return "w";   // uncompressed VCF
+    }
+    error("[%s:%d %s] Unknown file type: %d\n", __FILE__,__LINE__,__FUNCTION__, file_type);
+    return NULL;
 }
 
 void isec_vcf(args_t *args)
@@ -265,8 +273,8 @@ static void init_data(args_t *args)
         fprintf(args->fh_log,"\n\nUsing the following file names:\n");
 
         const char *suffix = "vcf";
-        if ( args->output_type & FT_BCF ) suffix = "bcf";
-        else if ( args->output_type & FT_GZ ) suffix = "vcf.gz";
+        if ( HTS_FT(args->output_type)==HTS_FT_BCF ) suffix = "bcf";
+        else if ( args->output_type & HTS_GZ ) suffix = "vcf.gz";
 
         // Open output files and write the legend
         if ( args->isec_op==OP_VENN )
@@ -341,14 +349,17 @@ static void destroy_data(args_t *args)
         {
             if ( !args->fnames[i] ) continue;
             hts_close(args->fh_out[i]);
-            if ( args->output_type==FT_VCF_GZ )
+            if ( args->output_type & HTS_GZ )
             {
-                tbx_conf_t conf = tbx_conf_vcf;
-                tbx_index_build(args->fnames[i], -1, &conf);
-            }
-            else if ( args->output_type==FT_BCF_GZ )
-            {
-                if ( bcf_index_build(args->fnames[i],14) ) error("Could not index %s\n", args->fnames[i]);
+                if ( HTS_FT(args->output_type)==HTS_FT_VCF )
+                {
+                    tbx_conf_t conf = tbx_conf_vcf;
+                    tbx_index_build(args->fnames[i], -1, &conf);
+                }
+                else if ( HTS_FT(args->output_type)==HTS_FT_BCF )
+                {
+                    if ( bcf_index_build(args->fnames[i],14) ) error("Could not index %s\n", args->fnames[i]);
+                }
             }
             free(args->fnames[i]);
         }
@@ -399,7 +410,7 @@ int main_vcfisec(int argc, char *argv[])
     args->files  = bcf_sr_init();
     args->argc   = argc; args->argv = argv;
     args->output_fname = NULL;
-    args->output_type = FT_VCF;
+    args->output_type = HTS_FT_VCF;
     int targets_is_file = 0, regions_is_file = 0;
 
     static struct option loptions[] =
@@ -424,10 +435,10 @@ int main_vcfisec(int argc, char *argv[])
             case 'o': args->output_fname = optarg; break;
             case 'O':
                 switch (optarg[0]) {
-                    case 'b': args->output_type = FT_BCF_GZ; break;
-                    case 'u': args->output_type = FT_BCF; break;
-                    case 'z': args->output_type = FT_VCF_GZ; break;
-                    case 'v': args->output_type = FT_VCF; break;
+                    case 'b': args->output_type = HTS_FT_BCF | HTS_GZ; break;
+                    case 'u': args->output_type = HTS_FT_BCF; break;
+                    case 'z': args->output_type = HTS_FT_VCF | HTS_GZ; break;
+                    case 'v': args->output_type = HTS_FT_VCF; break;
                     default: error("The output type \"%s\" not recognised\n", optarg);
                 }
                 break;

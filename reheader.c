@@ -484,15 +484,17 @@ int main_reheader(int argc, char *argv[])
 
     init_data(args);
 
-    if ( args->file_type & FT_VCF )
+    if ( HTS_FT(args->file_type) == HTS_FT_VCF )
     {
-        if ( args->file_type & FT_GZ )
+        if ( args->file_type & HTS_GZ )
             reheader_vcf_gz(args);
         else
             reheader_vcf(args);
     }
+    else if ( HTS_FT(args->file_type) == HTS_FT_BCF )
+        reheader_bcf(args, args->file_type & HTS_GZ);
     else
-        reheader_bcf(args, args->file_type & FT_GZ);
+        error("The file is not recognised: %s\n", args->fname);
 
     destroy_data(args);
     free(args);
