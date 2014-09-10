@@ -970,6 +970,15 @@ Extracts fields from VCF or BCF files and outputs them in user-defined format.
 === bcftools reheader ['OPTIONS'] 'file.vcf.gz'
 Modify header of VCF/BCF files, change sample names.
 
+*-c, --contigs* 'FILE'::
+    set contigs line from a file. Note that this option works only for VCF,
+    both compressed and uncompressed, but not for BCF. If the input file is
+    indexed, only contigs which are present in the VCF will be added. Unindexed
+    files will have all contigs added. The supported formats are the BAM header
+    @SQ lines (for example, @SQ SN:chr22 LN:51304566) or plain text format
+    with at least two columns (for example, chr22 51304566) where any additional fields
+    are ignored. 
+
 *-h, --header* 'FILE'::
     new VCF header
 

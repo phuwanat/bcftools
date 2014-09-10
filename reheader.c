@@ -34,24 +34,18 @@ THE SOFTWARE.  */
 #include <htslib/vcf.h>
 #include <htslib/bgzf.h>
 #include <htslib/kseq.h>
+#include <htslib/khash_str2int.h>
+#include <htslib/tbx.h>
 #include "bcftools.h"
 #include "khash_str2str.h"
 
 typedef struct _args_t
 {
-    char **argv, *fname, *samples_fname, *header_fname;
+    htsFile *fp;
+    char **argv, *fname, *samples_fname, *header_fname, *contigs_fname;
     int argc, file_type;
 }
 args_t;
-
-static void init_data(args_t *args)
-{
-    args->file_type = hts_file_type(args->fname);
-}
-
-static void destroy_data(args_t *args)
-{
-}
 
 static void read_header_file(char *fname, kstring_t *hdr)
 {
@@ -167,9 +161,152 @@ static void set_samples(char **samples, int nsamples, kstring_t *hdr)
     kputc('\n', hdr);
 }
 
+static void parse_fai_record(char *line, void *chr_dict, kstring_t *out)
+{
+    char *ss = line, *se = line;
+    while ( *se && !isspace(*se) ) se++;
+    char tmp = *se; *se = 0;
+    if ( chr_dict && !khash_str2int_has_key(chr_dict, ss) ) return;
+
+    kputs("##contig=<ID=", out);
+    kputs(ss, out);
+    kputs(",length=", out);
+
+    *se = tmp;
+    ss = se;
+    while ( *ss && isspace(*ss) ) ss++;
+    if ( !*ss ) error("Could not parse .fai: %s\n", line);
+    se = ss;
+    while ( *se && isdigit(*se) ) se++;
+    if ( ss==se ) error("Could not parse .fai: %s\n", line);
+    *se = 0;
+
+    kputs(ss, out);
+    kputs(">\n", out);
+}
+
+static void parse_dict_record(char *line, void *chr_dict, kstring_t *out)
+{
+    if ( strncmp("@SQ\t",line,4) ) return;
+
+    char *ss, *se, tmp;
+    if ( !(ss=strstr(line,"SN:")) ) error("Could not parse .dict file, the SN field not present: %s\n", line);
+    ss += 3;
+    se = ss;
+    while ( *se && !isspace(*se) ) se++;
+    tmp = *se; *se = 0;
+    if ( chr_dict && !khash_str2int_has_key(chr_dict, ss) ) return;
+    kputs("##contig=<ID=", out);
+    kputs(ss, out);
+    *se = tmp;
+
+    if ( !(ss=strstr(line,"LN:")) ) error("Could not parse .dict file, the LN field not present: %s\n", line);
+    ss += 3;
+    se = ss;
+    while ( *se && !isspace(*se) ) se++;
+    tmp = *se; *se = 0;
+    kputs(",length=", out);
+    kputs(ss, out);
+    *se = tmp;
+
+    if ( (ss=strstr(line,"M5:")) )
+    {
+        ss += 3;
+        se = ss;
+        while ( *se && !isspace(*se) ) se++;
+        tmp = *se; *se = 0;
+        kputs(",md5=", out);
+        kputs(ss, out);
+        *se = tmp;
+    }
+    if ( (ss=strstr(line,"AS:")) )
+    {
+        ss += 3;
+        se = ss;
+        while ( *se && !isspace(*se) ) se++;
+        tmp = *se; *se = 0;
+        kputs(",assembly=", out);
+        kputs(ss, out);
+        *se = tmp;
+    }
+    if ( (ss=strstr(line,"UR:")) )
+    {
+        ss += 3;
+        se = ss;
+        while ( *se && !isspace(*se) ) se++;
+        tmp = *se; *se = 0;
+        kputs(",URL=", out);
+        kputs(ss, out);
+        *se = tmp;
+    }
+    kputs(">\n", out);
+}
+
+static void set_contigs(args_t *args, kstring_t *hdr)
+{
+    // Remove any existing contig lines
+    char *ss = hdr->s;
+    while ( (ss=strstr(ss,"\n##contig=<")) )
+    {
+        char *se = ss+1;
+        while ( *se && *se!='\n' ) se++;
+        if ( !*se ) error("Could not parse the header\n");
+        memmove(ss+1,se+1,hdr->l - (se - hdr->s));
+        hdr->l -= se - ss;
+    }
+
+    // If indexed, we add only contigs which are actually used
+    void *chr_dict = NULL;
+    if ( args->file_type & HTS_GZ )
+    {
+        tbx_t *idx = tbx_index_load(args->fname);
+        if ( idx )
+        {
+            int i, nseq;
+            const char **seq = tbx_seqnames(idx, &nseq);
+            chr_dict = khash_str2int_init();
+            for (i=0; i<nseq; i++) khash_str2int_inc(chr_dict, strdup(seq[i]));
+            tbx_destroy(idx);
+            free(seq);
+        }
+    }
+
+    kstring_t tmp = {0,0,0}, ctgs = {0,0,0};
+    int is_fai = -1;
+    htsFile *fp = hts_open(args->contigs_fname, "r");
+    if ( !fp ) error("Could not read: %s\n", args->contigs_fname);
+    while ( hts_getline(fp, KS_SEP_LINE, &tmp) > 0 )
+    {
+        // first time here, is this a .dict or fai file?
+        if ( is_fai==-1 ) is_fai = tmp.s[0]=='@' ? 0 : 1;
+
+        if ( is_fai )
+            parse_fai_record(tmp.s, chr_dict, &ctgs);
+        else 
+            parse_dict_record(tmp.s, chr_dict, &ctgs);
+    }
+    if ( hts_close(fp) ) error("Close failed: %s\n", args->contigs_fname);
+    free(tmp.s);
+
+    if ( chr_dict) khash_str2int_destroy_free(chr_dict);
+
+    // Add the new contig lines
+    int i = hdr->l - 2;
+    while ( i>=0 && hdr->s[i]!='\n' ) i--;
+    if ( i<0 || strncmp(hdr->s+i+1,"#CHROM\tPOS\tID\tREF\tALT\tQUAL\tFILTER\tINFO",38) ) error("Could not parse the header: %s\n", hdr->s);
+    ks_resize(hdr, hdr->l+ctgs.l+1);
+    i++;    // after the newline
+    memmove(hdr->s+i+ctgs.l, hdr->s+i, hdr->l - i);
+    memcpy(hdr->s+i,ctgs.s,ctgs.l);
+    hdr->l += ctgs.l;
+    hdr->s[hdr->l] = 0;
+    free(ctgs.s);
+}
+
+BGZF *hts_get_bgzfp(htsFile *fp);
 static void reheader_vcf_gz(args_t *args)
 {
-    BGZF *fp = bgzf_open(args->fname,"r");
+    BGZF *fp = hts_get_bgzfp(args->fp);
     if ( !fp || bgzf_read_block(fp) != 0 || !fp->block_length )
         error("Failed to read %s: %s\n", args->fname, strerror(errno));
 
@@ -223,6 +360,7 @@ static void reheader_vcf_gz(args_t *args)
         for (i=0; i<nsamples; i++) free(samples[i]);
         free(samples);
     }
+    if ( args->contigs_fname ) set_contigs(args, &hdr);
 
     // Output the modified header
     BGZF *bgzf_out = bgzf_dopen(fileno(stdout), "w");
@@ -249,13 +387,12 @@ static void reheader_vcf_gz(args_t *args)
         if (count != nread) error("Write failed, wrote %d instead of %d bytes.\n", count,(int)nread);
     }
     if (bgzf_close(bgzf_out) < 0) error("Error: %d\n",bgzf_out->errcode);
-    if (bgzf_close(fp) < 0) error("Error: %d\n",fp->errcode);
     free(buf);
 }
 static void reheader_vcf(args_t *args)
 {
     kstring_t hdr = {0,0,0};
-    htsFile *fp = hts_open(args->fname, "r"); if ( !fp ) error("Failed to open: %s\n", args->fname);
+    htsFile *fp = args->fp;
     while ( hts_getline(fp, KS_SEP_LINE, &fp->line) >=0 )
     {
         kputc('\n',&fp->line);  // hts_getline eats the newline character
@@ -279,6 +416,7 @@ static void reheader_vcf(args_t *args)
         for (i=0; i<nsamples; i++) free(samples[i]);
         free(samples);
     }
+    if ( args->contigs_fname ) set_contigs(args, &hdr);
 
     int out = STDOUT_FILENO;
     if ( write(out, hdr.s, hdr.l)!=hdr.l ) error("Failed to write %d bytes\n", hdr.l);
@@ -292,7 +430,6 @@ static void reheader_vcf(args_t *args)
         kputc('\n',&fp->line);
         if ( write(out, fp->line.s, fp->line.l)!=fp->line.l ) error("Failed to write %d bytes\n", fp->line.l);
     }
-    hts_close(fp);
 }
 
 static bcf_hdr_t *strip_header(bcf_hdr_t *src, bcf_hdr_t *dst)
@@ -350,7 +487,7 @@ static bcf_hdr_t *strip_header(bcf_hdr_t *src, bcf_hdr_t *dst)
 
 static void reheader_bcf(args_t *args, int is_compressed)
 {
-    htsFile *fp = hts_open(args->fname, "r"); if ( !fp ) error("Failed to open: %s\n", args->fname);
+    htsFile *fp = args->fp;
     bcf_hdr_t *hdr = bcf_hdr_read(fp); if ( !hdr ) error("Failed to read the header: %s\n", args->fname);
     kstring_t htxt = {0,0,0};
     int hlen;
@@ -430,7 +567,6 @@ static void reheader_bcf(args_t *args, int is_compressed)
 
     free(htxt.s);
     hts_close(fp_out);
-    hts_close(fp);
     bcf_hdr_destroy(hdr_out);
     bcf_hdr_destroy(hdr);
 }
@@ -443,6 +579,7 @@ static void usage(args_t *args)
     fprintf(stderr, "Usage:   bcftools reheader [OPTIONS] <in.vcf.gz>\n");
     fprintf(stderr, "\n");
     fprintf(stderr, "Options:\n");
+    fprintf(stderr, "    -c, --contigs <file>    set contig lines from .fai or .dict file\n");
     fprintf(stderr, "    -h, --header <file>     new header\n");
     fprintf(stderr, "    -s, --samples <file>    new sample names\n");
     fprintf(stderr, "\n");
@@ -457,14 +594,16 @@ int main_reheader(int argc, char *argv[])
 
     static struct option loptions[] =
     {
+        {"contigs",1,0,'c'},
         {"header",1,0,'h'},
         {"samples",1,0,'s'},
         {0,0,0,0}
     };
-    while ((c = getopt_long(argc, argv, "s:h:c",loptions,NULL)) >= 0)
+    while ((c = getopt_long(argc, argv, "s:h:c:",loptions,NULL)) >= 0)
     {
         switch (c)
         {
+            case 'c': args->contigs_fname = optarg; break;
             case 's': args->samples_fname = optarg; break;
             case 'h': args->header_fname = optarg; break;
             case '?': usage(args);
@@ -479,10 +618,12 @@ int main_reheader(int argc, char *argv[])
     }
     else args->fname = argv[optind];
 
-    if ( !args->samples_fname && !args->header_fname ) usage(args);
+    if ( !args->samples_fname && !args->header_fname && !args->contigs_fname ) usage(args);
     if ( !args->fname ) usage(args);
 
-    init_data(args);
+    args->fp = hts_open(args->fname,"r");
+    if ( !args->fp ) error("Failed to open: %s\n", args->fname);
+    args->file_type = hts_fd_type(args->fp);
 
     if ( HTS_FT(args->file_type) == HTS_FT_VCF )
     {
@@ -492,11 +633,14 @@ int main_reheader(int argc, char *argv[])
             reheader_vcf(args);
     }
     else if ( HTS_FT(args->file_type) == HTS_FT_BCF )
+    {
+        if ( args->contigs_fname ) error("The -c option works only for VCF, sorry!\n");
         reheader_bcf(args, args->file_type & HTS_GZ);
+    }
     else
         error("The file is not recognised: %s\n", args->fname);
 
-    destroy_data(args);
+    if ( hts_close(args->fp) ) error("Close failed: %s\n", args->fname);
     free(args);
     return 0;
 }

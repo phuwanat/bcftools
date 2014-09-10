@@ -2,12 +2,12 @@
 .\"     Title: bcftools
 .\"    Author: [see the "AUTHORS" section]
 .\" Generator: DocBook XSL Stylesheets v1.76.1 <http://docbook.sf.net/>
-.\"      Date: 09/03/2014
+.\"      Date: 09/10/2014
 .\"    Manual: \ \&
 .\"    Source: \ \&
 .\"  Language: English
 .\"
-.TH "BCFTOOLS" "1" "09/03/2014" "\ \&" "\ \&"
+.TH "BCFTOOLS" "1" "09/10/2014" "\ \&" "\ \&"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -1681,6 +1681,11 @@ bcftools query \-f \*(Aq%CHROM\et%POS\et%REF\et%ALT[\et%SAMPLE=%GT]\en\*(Aq file
 .SS "bcftools reheader [\fIOPTIONS\fR] \fIfile\&.vcf\&.gz\fR"
 .sp
 Modify header of VCF/BCF files, change sample names\&.
+.PP
+\fB\-c, \-\-contigs\fR \fIFILE\fR
+.RS 4
+set contigs line from a file\&. Note that this option works only for VCF, both compressed and uncompressed, but not for BCF\&. If the input file is indexed, only contigs which are present in the VCF will be added\&. Unindexed files will have all contigs added\&. The supported formats are the BAM header @SQ lines (for example, @SQ SN:chr22 LN:51304566) or plain text format with at least two columns (for example, chr22 51304566) where any additional fields are ignored\&.
+.RE
 .PP
 \fB\-h, \-\-header\fR \fIFILE\fR
 .RS 4
