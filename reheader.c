@@ -625,7 +625,7 @@ int main_reheader(int argc, char *argv[])
     if ( !args->fp ) error("Failed to open: %s\n", args->fname);
     args->file_type = hts_fd_type(args->fp);
 
-    if ( HTS_FT(args->file_type) == HTS_FT_VCF )
+    if ( HTS_FT(args->file_type)==HTS_FT_VCF || HTS_FT(args->file_type)==HTS_FT_TXT )
     {
         if ( args->file_type & HTS_GZ )
             reheader_vcf_gz(args);
@@ -638,7 +638,7 @@ int main_reheader(int argc, char *argv[])
         reheader_bcf(args, args->file_type & HTS_GZ);
     }
     else
-        error("The file is not recognised: %s\n", args->fname);
+        error("The file type is not recognised: %s\n", args->fname);
 
     if ( hts_close(args->fp) ) error("Close failed: %s\n", args->fname);
     free(args);
