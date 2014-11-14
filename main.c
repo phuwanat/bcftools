@@ -54,6 +54,7 @@ int main_polysomy(int argc, char *argv[]);
 #endif
 int main_plugin(int argc, char *argv[]);
 int main_consensus(int argc, char *argv[]);
+int bam_mpileup(int argc, char *argv[]);
 
 typedef struct
 {
@@ -128,6 +129,10 @@ static cmd_t cmds[] =
       .help  = NULL
     },
 
+    { .func  = bam_mpileup,
+      .alias = "mpileup",
+      .help  = "multi-way pileup producing genotype likelihoods"
+    },
     { .func  = main_vcfcall,
       .alias = "call",
       .help  = "SNP/indel calling"
