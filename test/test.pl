@@ -112,6 +112,7 @@ test_vcf_filter($opts,in=>'view.filter',out=>'view.filter.10.out',args=>q[-S. -e
 test_vcf_filter($opts,in=>'view.filter',out=>'view.filter.11.out',args=>q[-S. -e'FMT/STR="XX"'],reg=>'');
 test_vcf_call($opts,in=>'mpileup',out=>'mpileup.1.out',args=>'-mv');
 test_vcf_call($opts,in=>'mpileup',out=>'mpileup.2.out',args=>'-mvg0');
+test_mpileup($opts,out=>'mpileup.3.out',args=>q[-uvDV -r17:100-600]);
 test_vcf_call_cAls($opts,in=>'mpileup',out=>'mpileup.cAls.out',tab=>'mpileup');
 test_vcf_filter($opts,in=>'filter.1',out=>'filter.1.out',args=>'-mx -g2 -G2');
 test_vcf_filter($opts,in=>'filter.2',out=>'filter.2.out',args=>q[-e'QUAL==59.2 || (INDEL=0 & (FMT/GQ=25 | FMT/DP=10))' -sModified -S.]);
@@ -724,5 +725,17 @@ sub test_vcf_consensus
     bgzip_tabix_vcf($opts,$args{in});
     my $mask = $args{mask} ? "-m $$opts{path}/$args{mask}" : '';
     test_cmd($opts,%args,cmd=>"$$opts{bin}/bcftools consensus $$opts{tmp}/$args{in}.vcf.gz -f $$opts{path}/$args{fa} $args{args} $mask");
+}
+sub test_mpileup
+{
+    my ($opts,%args) = @_;
+    
+    for my $fmt ('bam','cram')
+    {
+        my @files = ();
+        for my $file ('1', '2', '3') { push @files, "$$opts{path}/mpileup/$file.$fmt"; }
+        my $files = join(' ',@files);
+        test_cmd($opts,%args,cmd=>"$$opts{bin}/bcftools mpileup $args{args} -f $$opts{path}/mpileup/ref.fa $files | grep -v ^##mpileup");
+    }
 }
 

@@ -129,10 +129,6 @@ static cmd_t cmds[] =
       .help  = NULL
     },
 
-    { .func  = bam_mpileup,
-      .alias = "mpileup",
-      .help  = "multi-way pileup producing genotype likelihoods"
-    },
     { .func  = main_vcfcall,
       .alias = "call",
       .help  = "SNP/indel calling"
@@ -152,6 +148,10 @@ static cmd_t cmds[] =
     { .func  = main_vcfgtcheck,
       .alias = "gtcheck",
       .help  = "check sample concordance, detect sample swaps and contamination"
+    },
+    { .func  = bam_mpileup,
+      .alias = "mpileup",
+      .help  = "multi-way pileup producing genotype likelihoods"
     },
 #if USE_GPL
     { .func  = main_polysomy,
