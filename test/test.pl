@@ -735,7 +735,7 @@ sub test_mpileup
         my @files = ();
         for my $file ('1', '2', '3') { push @files, "$$opts{path}/mpileup/$file.$fmt"; }
         my $files = join(' ',@files);
-        test_cmd($opts,%args,cmd=>"$$opts{bin}/bcftools mpileup $args{args} -f $$opts{path}/mpileup/ref.fa $files | grep -v ^##mpileup");
+        test_cmd($opts,%args,cmd=>"$$opts{bin}/bcftools mpileup $args{args} -f $$opts{path}/mpileup/ref.fa $files | grep -v ^##mpileup | grep -v ^##reference");
     }
 }
 

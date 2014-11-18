@@ -1,6 +1,5 @@
 ##fileformat=VCFv4.2
 ##FILTER=<ID=PASS,Description="All filters passed">
-##reference=file:///nfs/users/nfs_p/pd3/git/bcftools/test/mpileup/ref.fa
 ##contig=<ID=17,length=81195210>
 ##ALT=<ID=X,Description="Represents allele(s) other than observed.">
 ##INFO=<ID=INDEL,Number=0,Type=Flag,Description="Indicates that the variant is an INDEL.">
