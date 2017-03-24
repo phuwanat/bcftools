@@ -224,7 +224,7 @@ test/test-rbuf: test/test-rbuf.o
 
 test/test-regidx.o: test/test-regidx.c regidx.h
 
-test/test-regidx: test/test-regidx.o regidx.o $(htslib_kstring_h)
+test/test-regidx: test/test-regidx.o regidx.o $(HTSLIB)
 	$(CC) $(ALL_LDFLAGS) -o $@ $^ $(HTSLIB) -lpthread $(HTSLIB_LIB) $(ALL_LIBS)
 
 
