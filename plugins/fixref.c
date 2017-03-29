@@ -423,11 +423,11 @@ bcf1_t *process(bcf1_t *rec)
     else if ( args.mode==MODE_FLIP2FWD )
     {
         int pair = 1 << ia | 1 << ib;
-        #if ( pair==0x9 || pair==0x6 )   // skip ambiguous pairs: A/T or C/G
-        #{
-        #    args.nunresolved++;
-        #    return args.discard ? NULL : ret;
-        #}
+        //if ( pair==0x9 || pair==0x6 )   // skip ambiguous pairs: A/T or C/G
+        //{
+        //    args.nunresolved++;
+        //    return args.discard ? NULL : ret;
+        //}
         if ( ir==ia ) return ret;
         if ( ir==ib ) { args.nswap++; return set_ref_alt(&args,rec,int2nt(ib),int2nt(ia),1); }
         if ( ir==revint(ia) ) { args.nflip++; return set_ref_alt(&args,rec,int2nt(revint(ia)),int2nt(revint(ib)),0); }
