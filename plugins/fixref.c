@@ -432,7 +432,9 @@ bcf1_t *process(bcf1_t *rec)
         if ( ir==ib ) { args.nswap++; return set_ref_alt(&args,rec,int2nt(ib),int2nt(ia),1); }
         if ( ir==revint(ia) ) { args.nflip++; return set_ref_alt(&args,rec,int2nt(revint(ia)),int2nt(revint(ib)),0); }
         if ( ir==revint(ib) ) { args.nflip_swap++; return set_ref_alt(&args,rec,int2nt(revint(ib)),int2nt(revint(ia)),1); }
-        error("FIXME: this should not happen %s:%d\n", bcf_seqname(args.hdr,rec),rec->pos+1);
+        //error("FIXME: this should not happen %s:%d\n", bcf_seqname(args.hdr,rec),rec->pos+1);
+	    fprintf(stderr,"FIXME: this should not happen %s:%d\n", bcf_seqname(args.hdr,rec),rec->pos+1);
+	    //fprintf(stderr,"SC\tBOT-compatible\t%d\n",bot_err?0:1);
     }
     else if ( args.mode==MODE_TOP2FWD )
     {
